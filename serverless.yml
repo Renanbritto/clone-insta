@@ -1,0 +1,13 @@
+service: sls-devagram-tp
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+
+plugins:
+  - serverless-plugin-typescript
+
+functions:
+  hello:
+    handler: handler.hello
