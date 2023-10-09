@@ -9,6 +9,7 @@
   },
   "author": "Renan Britto",
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.124",
     "serverless-plugin-typescript": "^2.1.5",
     "typescript": "^5.2.2"
   }
