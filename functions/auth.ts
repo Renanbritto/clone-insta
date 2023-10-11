@@ -1,8 +1,8 @@
-import type { Handler , APIGatewayEvent } from 'aws-lambda';
+import type { Handler, APIGatewayEvent } from 'aws-lambda';
 
 export const register : Handler = async(event: APIGatewayEvent) => {
     return {
-        haders: {
+        headers: {
             'Acess-Control-Allow-Origin' : '*'
         },
         statusCode: 200,
