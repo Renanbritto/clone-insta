@@ -10,7 +10,11 @@
   "author": "Renan Britto",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.124",
+    "aws-sdk": "^2.1493.0",
     "serverless-plugin-typescript": "^2.1.5",
     "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "amazon-cognito-identity-js": "^6.3.7"
   }
 }

@@ -1,38 +1,192 @@
-service: sls-devagram-tp
-frameworkVersion: "3"
+service: sls-devagram-typescript
+frameworkVersion: '3'
+
+custom:
+  userPoolId: !Ref CognitoUserPool
+  userPoolClientId: !Ref CognitoUserPoolClient
+  userTableName: 'users-table-${self:provider.stage}'
+  postTableName: 'posts-table-${self:provider.stage}'
+  avatarBucket: '${self:service}-${self:provider.stage}-devagram-avatars'
+  postBucket: '${self:service}-${self:provider.stage}-devagram-posts'
+  apigwBinary:
+    types:
+      - 'multipart/form-data'
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs14.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
+  environment:
+    USER_POOL_ID: ${self:custom.userPoolId}
+    USER_POOL_CLIENT_ID: ${self:custom.userPoolClientId}
+    USER_TABLE:  ${self:custom.userTableName}
+    POST_TABLE: ${self:custom.postTableName}
+    AVATAR_BUCKET: ${self:custom.avatarBucket}
+    POST_BUCKET: ${self:custom.postBucket}
+    LOG_LEVEL: ${param:level, 'info'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource:
+            - "*"
+  httpApi:
+    authorizers:
+      serviceAuthorizer:
+        identitySource: $request.header.Authorization
+        issuerUrl:
+          Fn::Join:
+          - ''
+          - 
+            - 'https://cognito-idp.'
+            - '${self:provider.region}'
+            - '.amazonaws.com/'
+            - Ref: CognitoUserPool
+        audience:
+          - Ref: CognitoUserPoolClient
 
 plugins:
   - serverless-plugin-typescript
+  - serverless-apigw-binary 
 
 functions:
   register:
-    handler: functions/auth.register
+    handler: src/functions/auth.register
     events:
       - http:
           path: register
           method: post
           cors: true
+  confirmEmail:
+    handler: src/functions/auth.confirmEmail
+    events:
+      - http:
+          path: confirmEmail
+          method: post
+          cors: true
+  forgotPassword:
+    handler: src/functions/auth.forgotPassword
+    events:
+      - http:
+          path: forgotPassword
+          method: post
+          cors: true
+  changePassword:
+     handler: src/functions/auth.changePassword
+     events:
+      - http:
+          path: changePassword
+          method: post
+          cors: true
+  login:
+    handler: src/functions/login.handler
+    events:
+      - http:
+          path: login
+          method: post
+          cors: true
+  me:
+    handler: src/functions/user.me
+    events:
+      - httpApi:
+          path: /me
+          method: get
+          authorizer: serviceAuthorizer
+  updateUser:
+    handler: src/functions/user.update
+    events:
+      - httpApi:
+          path: /user
+          method: put
+          authorizer: serviceAuthorizer
+  getUser:
+    handler: src/functions/user.getById
+    events:
+      - httpApi:
+          path: /user/{userId}
+          method: get
+          authorizer: serviceAuthorizer
+  searchUser:
+    handler: src/functions/user.searchUser
+    events:
+      - httpApi:
+          path: /user/search/{filter}
+          method: get
+          authorizer: serviceAuthorizer
+  toggleFollow:
+    handler: src/functions/follow.toggle
+    events:
+      - httpApi:
+          path: /follow/{followId}
+          method: put
+          authorizer: serviceAuthorizer
+  feedByMy:
+    handler: src/functions/feed.getByUser
+    events:
+      - httpApi:
+          path: /feed/user
+          method: get
+          authorizer: serviceAuthorizer
+  feedByUser:
+    handler: src/functions/feed.getByUser
+    events:
+      - httpApi:
+          path: /feed/user/{userId}
+          method: get
+          authorizer: serviceAuthorizer
+  feedHome:
+    handler: src/functions/feed.getHome
+    events:
+      - httpApi:
+          path: /feed
+          method: get
+          authorizer: serviceAuthorizer
+  createPost:
+    handler: src/functions/post.create
+    events:
+      - httpApi:
+          path: /post
+          method: post
+          authorizer: serviceAuthorizer
+  toggleLike:
+    handler: src/functions/post.toggleLike
+    events:
+      - httpApi:
+          path: /like/{postId}
+          method: put
+          authorizer: serviceAuthorizer
+  postComment:
+    handler: src/functions/post.comment
+    events:
+      - httpApi:
+          path: /comment/{postId}
+          method: put
+          authorizer: serviceAuthorizer
+  getPost:
+    handler: src/functions/post.get
+    events:
+      - httpApi:
+          path: /post/{postId}
+          method: get
+          authorizer: serviceAuthorizer
 
 resources:
   Resources:
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
-        UserPoolName: ${self:service}--${self:provider.stage}--user-pool
-        AdminCreateUserConfig:
-          AllowAdminCreateUserOnly: False
-        UsernameAttributes:
+        UserPoolName: ${self:service}-${self:provider.stage}-user-pool
+        AdminCreateUserConfig: 
+          AllowAdminCreateUserOnly: false
+        UsernameAttributes: 
           - email
-        AutoVerifiedAttributes:
+        AutoVerifiedAttributes: 
           - email
-        EmailVerificationMessage: "Seu código de verificação para o cadastro Vivas é: {####}."
-        EmailVerificationSubject: "Código de verificação Vivas"
+        EmailVerificationMessage: "Seu código de verificação para o cadastro Devragram é: {####}"
+        EmailVerificationSubject: "Código de verificação Devagram"
         Policies:
           PasswordPolicy:
             MinimumLength: 8
@@ -40,33 +194,81 @@ resources:
             RequireNumbers: true
             RequireSymbols: true
             RequireUppercase: true
-
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
         ClientName: ${self:service}-${self:provider.stage}-user-pool-client
         UserPoolId: !Ref CognitoUserPool
-        AllowedOAuthFlows:
+        AllowedOAuthFlows: 
           - implicit
         AllowedOAuthFlowsUserPoolClient: true
         AllowedOAuthScopes:
           - email
           - openid
         CallbackURLs:
-          - https://www.google.com
+          - https://www.devaria.com.br
         LogoutURLs:
-          - https://www.google.com
+          - https://www.devaria.com.br
         ExplicitAuthFlows:
+          - ALLOW_CUSTOM_AUTH
           - ALLOW_USER_SRP_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
         SupportedIdentityProviders:
           - COGNITO
-        ReadAttibutes:
+        ReadAttributes:
           - email
-        writeAttributes:
+        WriteAttributes:
           - email
-
-  
-
-
-
+    CognitoUserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        UserPoolId: !Ref CognitoUserPool
+        Domain: ${self:service}-${self:provider.stage}-user-pool-domain-serveless-devaria
+    AvatarsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.avatarBucket}
+        AccessControl: Private
+    AvatarsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref AvatarsBucket
+        PolicyDocument:
+          Statement:
+            - Effect: "Allow"
+              Principal: "*"
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource:
+                Fn::Join:
+                  - ""
+                  -
+                    - "arn:aws:s3:::"
+                    - !Ref AvatarsBucket
+                    - "/*"
+    PostsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.postBucket}
+        AccessControl: Private
+    PostsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref PostsBucket
+        PolicyDocument:
+          Statement:
+            - Effect: "Allow"
+              Principal: "*"
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource:
+                Fn::Join:
+                  - ""
+                  -
+                    - "arn:aws:s3:::"
+                    - !Ref PostsBucket
+                    - "/*"
